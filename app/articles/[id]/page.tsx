@@ -2,53 +2,97 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useChangeSet } from '../../ChangeSetContext';
-import { getArticles } from '../../firestore';
+import { getArticles, getFilms } from '../../firestore';
 import { uploadArticleImages } from '../../storage';
 import RichTextEditor from '../../components/RichTextEditor';
 
 export default function EditArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const { addChange } = useChangeSet();
+  const { addChange, getPendingData } = useChangeSet();
   const { id } = use(params);
   const [loading, setLoading] = useState(true);
+  const [films, setFilms] = useState<any[]>([]);
   
   const [article, setArticle] = useState({
     title: '',
     excerpt: '',
     content: '',
+    date: '',
     image: '',
     mobileImage: '',
     showInCarousel: false,
     carouselOrder: 0,
+    relatedFilm: '',
   });
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [mobileImageFile, setMobileImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [imageSize, setImageSize] = useState<number>(0);
+  const [mobileImageSize, setMobileImageSize] = useState<number>(0);
 
   useEffect(() => {
     async function loadArticle() {
-      const articles = await getArticles();
-      console.log('All articles:', articles);
-      console.log('Looking for ID:', id);
-      const found = articles.find(a => a.id === id);
-      console.log('Found article:', found);
+      const allFilms = await getFilms();
+      setFilms(allFilms);
+
+      // Handle new article creation
+      if (id === 'new') {
+        setArticle({
+          title: '',
+          excerpt: '',
+          content: '',
+          date: '',
+          image: '',
+          mobileImage: '',
+          showInCarousel: false,
+          carouselOrder: 0,
+          relatedFilm: '',
+        });
+        setLoading(false);
+        return;
+      }
+
+      const allArticles = await getArticles();
+      
+      const pendingData = getPendingData('article', id);
+      
+      if (pendingData) {
+        setArticle({
+          title: pendingData.title || '',
+          excerpt: pendingData.excerpt || '',
+          content: pendingData.content || '',
+          date: pendingData.date || '',
+          image: pendingData.image || '',
+          mobileImage: pendingData.mobileImage || '',
+          showInCarousel: pendingData.showInCarousel || false,
+          carouselOrder: pendingData.carouselOrder || 0,
+          relatedFilm: pendingData.relatedFilm || '',
+        });
+        setLoading(false);
+        return;
+      }
+
+      const found = allArticles.find(a => a.id === id);
       if (found) {
         setArticle({
           title: found.title || '',
           excerpt: found.excerpt || '',
           content: found.content || '',
+          date: found.date || '',
           image: found.image || '',
           mobileImage: found.mobileImage || '',
           showInCarousel: found.showInCarousel || false,
           carouselOrder: found.carouselOrder || 0,
+          relatedFilm: found.relatedFilm || '',
         });
       }
       setLoading(false);
     }
     loadArticle();
-  }, [id]);
+  }, [id, getPendingData]);
 
   if (loading) {
     return (
@@ -59,40 +103,44 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
   }
 
   const handleSave = async () => {
-    setUploading(true);
-    try {
-      let updatedArticle = { ...article };
+    const articleId = id === 'new' ? article.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : id;
 
-      // Upload images if new files selected
-      if (imageFile || mobileImageFile) {
-        const articleSlug = id;
-        const urls = await uploadArticleImages(articleSlug, imageFile || undefined, mobileImageFile || undefined);
-        
-        if (urls.desktop) updatedArticle.image = urls.desktop;
-        if (urls.mobile) updatedArticle.mobileImage = urls.mobile;
-      }
+    addChange({
+      type: 'article',
+      name: article.title,
+      action: id === 'new' ? 'created' : 'updated',
+      data: { 
+        ...article, 
+        id: articleId, 
+        slug: articleId,
+        imageFile: imageFile ? await fileToBase64(imageFile) : undefined,
+        mobileImageFile: mobileImageFile ? await fileToBase64(mobileImageFile) : undefined,
+      },
+    });
+    router.push('/');
+  };
 
-      addChange({
-        type: 'article',
-        name: updatedArticle.title,
-        action: 'updated',
-        data: updatedArticle,
-      });
-      router.push('/');
-    } catch (error) {
-      console.error('Error uploading images:', error);
-      alert('Failed to upload images. Please try again.');
-    } finally {
-      setUploading(false);
-    }
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-orange-50 p-8">
       <div className="max-w-4xl mx-auto">
+        <Link href="/articles" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4">
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to Articles
+        </Link>
         <div className="bg-white rounded-2xl p-8 shadow-xl">
-          <h1 className="text-4xl font-black text-gray-900 mb-2">Edit Article</h1>
-          <p className="text-sm text-gray-500 mb-8">ID: {id}</p>
+          <h1 className="text-4xl font-black text-gray-900 mb-2">{id === 'new' ? 'New Article' : 'Edit Article'}</h1>
+          {id !== 'new' && <p className="text-sm text-gray-500 mb-8">ID: {id}</p>}
           
           <div className="space-y-6">
             <div>
@@ -101,6 +149,17 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                 type="text"
                 value={article.title}
                 onChange={(e) => setArticle({ ...article, title: e.target.value })}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-yellow-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Date</label>
+              <input
+                type="text"
+                value={article.date}
+                onChange={(e) => setArticle({ ...article, date: e.target.value })}
+                placeholder="e.g. February 23, 2026"
                 className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-yellow-500 focus:outline-none"
               />
             </div>
@@ -127,7 +186,26 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Desktop Image</label>
                 {article.image && (
-                  <img src={article.image} alt="Preview" className="w-full h-32 object-cover rounded-lg mb-2" />
+                  <div className="relative">
+                    <img src={article.image} alt="Preview" className="w-full h-32 object-cover rounded-lg mb-2" />
+                    <button
+                      onClick={() => {
+                        setArticle({ ...article, image: '' });
+                        setImageFile(null);
+                        setImageSize(0);
+                      }}
+                      className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+                {imageSize > 0 && (
+                  <p className={`text-sm mb-2 ${imageSize > 1.5 * 1024 * 1024 ? 'text-red-600 font-bold' : 'text-gray-600'}`}>
+                    {imageSize > 1.5 * 1024 * 1024 && '⚠️ '}
+                    Size: {(imageSize / 1024 / 1024).toFixed(2)} MB
+                    {imageSize > 1.5 * 1024 * 1024 && ' (Too large!)'}
+                  </p>
                 )}
                 <input
                   type="file"
@@ -136,6 +214,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                     const file = e.target.files?.[0];
                     if (file) {
                       setImageFile(file);
+                      setImageSize(file.size);
                       const url = URL.createObjectURL(file);
                       setArticle({ ...article, image: url });
                     }
@@ -147,7 +226,26 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Mobile Image (Optional)</label>
                 {article.mobileImage && (
-                  <img src={article.mobileImage} alt="Mobile Preview" className="w-full h-32 object-cover rounded-lg mb-2" />
+                  <div className="relative">
+                    <img src={article.mobileImage} alt="Mobile Preview" className="w-full h-32 object-cover rounded-lg mb-2" />
+                    <button
+                      onClick={() => {
+                        setArticle({ ...article, mobileImage: '' });
+                        setMobileImageFile(null);
+                        setMobileImageSize(0);
+                      }}
+                      className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+                {mobileImageSize > 0 && (
+                  <p className={`text-sm mb-2 ${mobileImageSize > 1.5 * 1024 * 1024 ? 'text-red-600 font-bold' : 'text-gray-600'}`}>
+                    {mobileImageSize > 1.5 * 1024 * 1024 && '⚠️ '}
+                    Size: {(mobileImageSize / 1024 / 1024).toFixed(2)} MB
+                    {mobileImageSize > 1.5 * 1024 * 1024 && ' (Too large!)'}
+                  </p>
                 )}
                 <input
                   type="file"
@@ -156,6 +254,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
                     const file = e.target.files?.[0];
                     if (file) {
                       setMobileImageFile(file);
+                      setMobileImageSize(file.size);
                       const url = URL.createObjectURL(file);
                       setArticle({ ...article, mobileImage: url });
                     }
@@ -177,13 +276,26 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
               </label>
             </div>
 
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Related Film (Optional)</label>
+              <select
+                value={article.relatedFilm}
+                onChange={(e) => setArticle({ ...article, relatedFilm: e.target.value })}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-yellow-500 focus:outline-none"
+              >
+                <option value="">None</option>
+                {films.map((film) => (
+                  <option key={film.id} value={film.name}>{film.name}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex gap-4 pt-4">
               <button
                 onClick={handleSave}
-                disabled={uploading}
-                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg"
               >
-                {uploading ? 'Uploading...' : 'Save Changes'}
+                Save Changes
               </button>
               <button
                 onClick={() => router.push('/articles')}

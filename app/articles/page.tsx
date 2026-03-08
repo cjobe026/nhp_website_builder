@@ -30,6 +30,12 @@ export default function ArticlesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-orange-50 p-8">
       <div className="max-w-7xl mx-auto">
+        <Link href="/" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6">
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to Home
+        </Link>
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-5xl font-black text-gray-900">Articles</h1>
           <Link href="/articles/new">
@@ -53,7 +59,22 @@ export default function ArticlesPage() {
                 <Link href={`/articles/${article.id}`}>
                   <button className="text-blue-600 hover:text-blue-800 text-sm font-semibold">Edit</button>
                 </Link>
-                <button className="text-red-600 hover:text-red-800 text-sm font-semibold">Delete</button>
+                <button 
+                  onClick={() => {
+                    if (confirm(`Delete "${article.title}"?`)) {
+                      addChange({
+                        type: 'article',
+                        name: article.title,
+                        action: 'deleted',
+                        data: { id: article.id },
+                      });
+                      setArticles(articles.filter(a => a.id !== article.id));
+                    }
+                  }}
+                  className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                >
+                  Delete
+                </button>
               </div>
             </div>
           ))}

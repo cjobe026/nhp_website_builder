@@ -69,9 +69,7 @@ export async function getArticles(): Promise<Article[]> {
     const data = doc.data();
     return { 
       id: doc.id, 
-      ...data,
-      createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-      updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
+      ...data
     } as Article;
   });
 }
@@ -83,9 +81,7 @@ export async function getCarouselArticles(): Promise<Article[]> {
     const data = doc.data();
     return { 
       id: doc.id, 
-      ...data,
-      createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-      updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
+      ...data
     } as Article;
   });
   return articles
@@ -102,9 +98,7 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
   const data = docSnap.data();
   return { 
     id: docSnap.id, 
-    ...data,
-    createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-    updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
+    ...data
   } as Article;
 }
 
@@ -115,9 +109,7 @@ export async function getFilms(): Promise<Film[]> {
     const data = doc.data();
     return { 
       id: doc.id, 
-      ...data,
-      createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-      updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
+      ...data
     } as Film;
   });
 }
@@ -131,9 +123,7 @@ export async function getFilmByName(name: string): Promise<Film | null> {
   const data = docSnap.data();
   return { 
     id: docSnap.id, 
-    ...data,
-    createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-    updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
+    ...data
   } as Film;
 }
 
@@ -144,9 +134,7 @@ export async function getEvents(): Promise<Event[]> {
     const data = doc.data();
     return { 
       id: doc.id, 
-      ...data,
-      createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-      updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
+      ...data
     } as Event;
   });
 }
@@ -158,9 +146,7 @@ export async function getUpcomingEvents(): Promise<Event[]> {
     const data = doc.data();
     return { 
       id: doc.id, 
-      ...data,
-      createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-      updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
+      ...data
     } as Event;
   });
   return events
@@ -175,9 +161,7 @@ export async function getMainPageEvents(): Promise<Event[]> {
     const data = doc.data();
     return { 
       id: doc.id, 
-      ...data,
-      createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
-      updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt
+      ...data
     } as Event;
   });
   return events

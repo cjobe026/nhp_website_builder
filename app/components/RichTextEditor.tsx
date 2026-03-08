@@ -14,6 +14,24 @@ export default function RichTextEditor({ value, onChange }: RichTextEditorProps)
   const [historyIndex, setHistoryIndex] = useState(0);
 
   useEffect(() => {
+    if (editorRef.current && editorRef.current.innerHTML !== value) {
+      const selection = window.getSelection();
+      const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null;
+      
+      editorRef.current.innerHTML = value;
+      
+      if (range && selection && editorRef.current.contains(range.startContainer)) {
+        try {
+          selection.removeAllRanges();
+          selection.addRange(range);
+        } catch (e) {
+          // Ignore if range is invalid
+        }
+      }
+    }
+  }, [value]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
         e.preventDefault();
@@ -77,6 +95,70 @@ export default function RichTextEditor({ value, onChange }: RichTextEditorProps)
         return [...newHistory, content];
       });
       setHistoryIndex(prev => Math.min(prev + 1, 19));
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        
+        if (e.key === 'Backspace' && range.collapsed) {
+          const node = range.startContainer;
+          const offset = range.startOffset;
+          
+          // Check if previous sibling is an image
+          if (node.nodeType === Node.TEXT_NODE && offset === 0) {
+            const parent = node.parentNode;
+            const prevSibling = node.previousSibling;
+            if (prevSibling && prevSibling.nodeName === 'IMG') {
+              e.preventDefault();
+              prevSibling.remove();
+              handleInput();
+              return;
+            }
+          } else if (node.nodeType === Node.ELEMENT_NODE) {
+            const prevNode = node.childNodes[offset - 1];
+            if (prevNode && prevNode.nodeName === 'IMG') {
+              e.preventDefault();
+              prevNode.remove();
+              handleInput();
+              return;
+            }
+          }
+        }
+        
+        // Check if selection contains an image
+        const container = range.commonAncestorContainer;
+        const parent = container.nodeType === Node.TEXT_NODE ? container.parentNode : container;
+        if (parent) {
+          const imgs = (parent as Element).querySelectorAll?.('img') || [];
+          if (imgs.length > 0) {
+            e.preventDefault();
+            imgs.forEach(img => img.remove());
+            handleInput();
+            return;
+          }
+        }
+      }
+    }
+  };
+
+  const handleEditorClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'A') {
+      e.preventDefault();
+      const href = target.getAttribute('href');
+      if (href) {
+        const newUrl = prompt('Edit link URL:', href);
+        if (newUrl !== null) {
+          target.setAttribute('href', newUrl);
+          if (editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+          }
+        }
+      }
     }
   };
 
@@ -193,7 +275,8 @@ export default function RichTextEditor({ value, onChange }: RichTextEditorProps)
         ref={editorRef}
         contentEditable
         onInput={handleInput}
-        dangerouslySetInnerHTML={{ __html: value }}
+        onKeyDown={handleKeyDown}
+        onClick={handleEditorClick}
         className="p-4 min-h-[300px] focus:outline-none bg-white"
         style={{
           wordWrap: 'break-word',

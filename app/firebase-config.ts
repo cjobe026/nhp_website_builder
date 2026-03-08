@@ -25,6 +25,6 @@ const prodConfig = {
 const isDev = process.env.NEXT_PUBLIC_ENV === 'development' || process.env.NODE_ENV === 'development';
 const config = isDev ? devConfig : prodConfig;
 
-const app = getApps().length === 0 ? initializeApp(config) : getApps()[0];
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+const dbApp = getApps().find(app => app.name === '[DEFAULT]') || initializeApp(config);
+export const db = getFirestore(dbApp);
+export const storage = getStorage(dbApp);
